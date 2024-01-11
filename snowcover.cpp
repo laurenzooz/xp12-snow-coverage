@@ -14,14 +14,14 @@ static float last_depth = 1.25;
 
 
 
-float translate_units(float depth_m)
+float convert_units(float depth_m)
 {
-	if (depth_m > 0.5) {
+	if (depth_m > 0.4) {
 		return 0;
 	} else if (depth_m > 0.05) {
 		return ( (1 / (20 * depth_m)) - 0.2 + 0.2 * depth_m);
 	} else if (depth_m > 0) {
-		return (-9 * depth_m + 1.25);
+		return (-10 * depth_m + 1.2);
 	}	
 	else {
 		return 1.25;
@@ -67,7 +67,7 @@ static float set_depth(float time_since_last_call, float time_since_last_floop, 
 			
 			//last_depth = 0;
 			if (!std::isnan(depth)) {
-				last_depth = translate_units(depth);
+				last_depth = convert_units(depth);
 
 
 			}
@@ -83,16 +83,16 @@ static float set_depth(float time_since_last_call, float time_since_last_floop, 
 
 static float floop_cb(float time_since_last_call, float time_since_last_floop, int floop_counter, void* inRefcon) 
 {
-	XPLMDataRef snowRef = XPLMFindDataRef("sim/private/controls/wxr/snow_now");
 
         //if (initialized)
         //{
+		XPLMDataRef snowRef = XPLMFindDataRef("sim/private/controls/wxr/snow_now");
 		if (XPLMGetDataf(lat) != 0.0 && XPLMGetDataf(lon) != 0.0) {
 			//std::cout << ("snowref is\n");
 			if (!initialized) {
 				initialized = true;
-				set_depth(0, 0, 0, NULL);
-				std::cout << "initialized\n";
+				set_depth(10, 10, 1, NULL);
+				//std::cout << "initialized\n";
 			}
 			XPLMSetDataf(snowRef, last_depth); 
 
@@ -115,7 +115,7 @@ PLUGIN_API int XPluginStart(
     XPLMRegisterFlightLoopCallback(floop_cb, -1, NULL); // flight loop every cycle
     XPLMRegisterFlightLoopCallback(set_depth, 600, NULL); // update snow depth every 5 mins
 
-	XPLMDebugString("starting snowcover plugin\n");
+	//XPLMDebugString("starting snowcover plugin\n");
 
     return 1;
 }
