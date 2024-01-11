@@ -2,6 +2,7 @@
 #include "XPLMPlugin.h"
 #include "XPLMProcessing.h"
 #include "XPLMUtilities.h"
+#include "XPLMMenus.h"
 
 #include <string>
 #include <cstring>
@@ -10,7 +11,7 @@
 #include <nlohmann/json.hpp>
 
 static float last_depth = 1.25;
-
+static float offset = 0;
 
 
 
@@ -22,8 +23,7 @@ float convert_units(float depth_m)
 		return ( (1 / (21 * depth_m)) - 0.15 + 0.05 * depth_m);
 	} else if (depth_m > 0) {
 		return (-10 * depth_m + 1.2);
-	}	
-	else {
+	} else {
 		return 1.25;
 	}
 	
@@ -31,6 +31,7 @@ float convert_units(float depth_m)
 
 
 bool initialized = false;
+bool enabled = true; 
 
 static XPLMDataRef lat = XPLMFindDataRef("sim/flightmodel/position/latitude");
 static XPLMDataRef lon = XPLMFindDataRef("sim/flightmodel/position/longitude");
@@ -39,7 +40,7 @@ static XPLMDataRef lon = XPLMFindDataRef("sim/flightmodel/position/longitude");
 static float set_depth(float time_since_last_call, float time_since_last_floop, int floop_counter, void* inRefcon) 
 {	
 	//std::cout << "settin depth\n";
-	if (initialized){
+	if (initialized && enabled){
 	
 
 	
@@ -67,7 +68,7 @@ static float set_depth(float time_since_last_call, float time_since_last_floop, 
 			
 			//last_depth = 0;
 			if (!std::isnan(depth)) {
-				last_depth = convert_units(depth);
+				last_depth = convert_units(depth + offset);
 
 
 			}
@@ -102,6 +103,38 @@ static float floop_cb(float time_since_last_call, float time_since_last_floop, i
     return -1;
 }
 
+static void menu_cb(void *menu_ref, void *item_ref)
+{
+    if(!strcmp((const char *)item_ref, "Toggle"))
+	{
+		if (enabled) { 
+			last_depth = 1.25;
+			XPLMDebugString("Disabled\n\n\n");
+			enabled = false; // disable
+		} else { // disable
+			enabled = true;
+			set_depth(1, 1, 1, NULL); // re-enable and call immediately
+		}
+	}
+	else if(!strcmp((const char *)item_ref, "Reset"))
+	{
+		offset = 0; // offset back to default
+		set_depth(1, 1, 1, NULL); // for the change to have effect
+	}
+	else if(!strcmp((const char *)item_ref, "Plus"))
+	{
+		offset += 0.05; 
+		set_depth(1, 1, 1, NULL);
+	}
+	else if(!strcmp((const char *)item_ref, "Minus"))
+	{
+		offset -= 0.05;
+		set_depth(1, 1, 1, NULL); 
+	}
+
+}
+
+
 PLUGIN_API int XPluginStart(
     char * outName,
     char * outSig,
@@ -116,6 +149,16 @@ PLUGIN_API int XPluginStart(
     XPLMRegisterFlightLoopCallback(set_depth, 600, NULL); // update snow depth every 5 mins
 
 	//XPLMDebugString("starting snowcover plugin\n");
+	// menu
+
+    XPLMMenuID menu = XPLMFindPluginsMenu();
+    int sub_menu = XPLMAppendMenuItem(menu, "Snow cover", NULL, 1);
+    XPLMMenuID adgs_menu = XPLMCreateMenu("Snow cover", menu, sub_menu, menu_cb, NULL);
+
+    XPLMAppendMenuItem(adgs_menu, "Toggle", (void *)"Toggle", 0);
+    XPLMAppendMenuItem(adgs_menu, "Reset offset", (void *)"Reset", 0);
+    XPLMAppendMenuItem(adgs_menu, "Offset +5cm", (void *)"Plus", 0);
+    XPLMAppendMenuItem(adgs_menu, "Offset -5cm", (void *)"Minus", 0);
 
     return 1;
 }
