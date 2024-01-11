@@ -16,10 +16,10 @@ static float last_depth = 1.25;
 
 float convert_units(float depth_m)
 {
-	if (depth_m > 0.4) {
+	if (depth_m > 0.35) {
 		return 0;
 	} else if (depth_m > 0.05) {
-		return ( (1 / (20 * depth_m)) - 0.2 + 0.2 * depth_m);
+		return ( (1 / (21 * depth_m)) - 0.15 + 0.05 * depth_m);
 	} else if (depth_m > 0) {
 		return (-10 * depth_m + 1.2);
 	}	
